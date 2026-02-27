@@ -9,7 +9,11 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@heroui/react": "^2.8.9",
+    "dayjs": "^1.11.19",
+    "framer-motion": "^12.34.3",
     "next": "16.1.6",
+    "oci-sdk": "^2.125.3",
     "react": "19.2.3",
     "react-dom": "19.2.3"
   },
