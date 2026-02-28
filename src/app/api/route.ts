@@ -53,8 +53,10 @@ export async function GET(request: Request) {
     const subnets = await virtualNetworkClient.listSubnets({
       compartmentId,
     });
+    let message = '抢到了'
     for (const availabilityDomain of AvailabilityDomains.items) {
       try {
+        console.log('run availabilityDomain==>',availabilityDomain.name)
         const launchInstanceDetails: LaunchInstanceDetails = {
           compartmentId,
           availabilityDomain: availabilityDomain.name || "",
@@ -75,7 +77,7 @@ export async function GET(request: Request) {
             ssh_authorized_keys: process.env.ssh_authorized_keys!,
           },
         };
-        console.log(JSON.stringify(launchInstanceDetails));
+        // console.log(JSON.stringify(launchInstanceDetails));
         const res = await computerClient.launchInstance({
           launchInstanceDetails,
         });
@@ -83,12 +85,11 @@ export async function GET(request: Request) {
           break;
         }
       } catch (e) {
-        console.warn((e as Error).message);
-        return Response.json({ message: (e as Error).message });
+        message = (e as Error).message
       }
     }
     /**todo 发送通知 */
-    return Response.json({ message: "抢到了" });
+    return Response.json({ message });
   } catch (err) {
     console.log("err", err);
   }
