@@ -2,9 +2,11 @@ import { ComputeClient, VirtualNetworkClient } from "oci-core";
 import { Region, SimpleAuthenticationDetailsProvider } from "oci-common";
 import { IdentityClient } from "oci-identity";
 import { LaunchInstanceDetails } from "oci-core/lib/model";
+import { sendDingTalkTextMessage } from "@/lib/dingtalk";
 
 const shape = "VM.Standard.A1.Flex";
-export async function GET(request: Request) {
+const successMsg = "抢到了";
+export async function GET() {
   try {
     const authenticationDetailsProvider =
       new SimpleAuthenticationDetailsProvider(
@@ -53,10 +55,10 @@ export async function GET(request: Request) {
     const subnets = await virtualNetworkClient.listSubnets({
       compartmentId,
     });
-    let message = '抢到了'
+    let message = successMsg;
     for (const availabilityDomain of AvailabilityDomains.items) {
       try {
-        console.log('run availabilityDomain==>',availabilityDomain.name)
+        console.log("run availabilityDomain==>", availabilityDomain.name);
         const launchInstanceDetails: LaunchInstanceDetails = {
           compartmentId,
           availabilityDomain: availabilityDomain.name || "",
@@ -85,25 +87,23 @@ export async function GET(request: Request) {
           break;
         }
       } catch (e) {
-        message = (e as Error).message
+        message = (e as Error).message;
       }
     }
-    /**todo 发送通知 */
+    if (
+      process.env.DINGTALK_ACCESS_TOKEN &&
+      process.env.DINGTALK_SECRET &&
+      message === successMsg
+    ) {
+      await sendDingTalkTextMessage({
+        content: successMsg,
+        atMobiles: process.env.DINGTALK_AT_MOBILE
+          ? process.env.DINGTALK_AT_MOBILE.split(",")
+          : [],
+      });
+    }
     return Response.json({ message });
   } catch (err) {
     console.log("err", err);
   }
 }
-
-export async function HEAD(request: Request) {}
-
-export async function POST(request: Request) {}
-
-export async function PUT(request: Request) {}
-
-export async function DELETE(request: Request) {}
-
-export async function PATCH(request: Request) {}
-
-// If `OPTIONS` is not defined, Next.js will automatically implement `OPTIONS` and set the appropriate Response `Allow` header depending on the other methods defined in the Route Handler.
-export async function OPTIONS(request: Request) {}
