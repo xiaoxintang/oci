@@ -4,3 +4,4 @@ ignoredBuiltDependencies:
 
 onlyBuiltDependencies:
   - '@heroui/shared-utils'
+  - msw

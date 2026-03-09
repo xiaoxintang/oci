@@ -3,11 +3,11 @@ import {
   Table,
   TableHeader,
   TableBody,
-  TableColumn,
   TableRow,
   TableCell,
-} from "@heroui/table";
-import { Button } from "@heroui/button";
+  TableHead,
+} from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
 import dayjs from "dayjs";
 import { Instance } from "oci-core/lib/model";
 export interface ListItemI extends Instance {
@@ -21,16 +21,18 @@ export default function Oci(props: { list: ListItemI[] }) {
       <Button>刷新</Button>
       <Table>
         <TableHeader>
-          <TableColumn>名称</TableColumn>
-          <TableColumn>状态</TableColumn>
-          <TableColumn>公共IP</TableColumn>
-          <TableColumn>专用IP</TableColumn>
-          <TableColumn>配置</TableColumn>
-          <TableColumn>OCPU 计数</TableColumn>
-          <TableColumn>内存 (GB)</TableColumn>
-          <TableColumn>可用性域</TableColumn>
-          <TableColumn>容错域</TableColumn>
-          <TableColumn>创建时间</TableColumn>
+          <TableRow>
+            <TableHead>名称</TableHead>
+            <TableHead>状态</TableHead>
+            <TableHead>公共IP</TableHead>
+            <TableHead>专用IP</TableHead>
+            <TableHead>配置</TableHead>
+            <TableHead>OCPU 计数</TableHead>
+            <TableHead>内存 (GB)</TableHead>
+            <TableHead>可用性域</TableHead>
+            <TableHead>容错域</TableHead>
+            <TableHead>创建时间</TableHead>
+          </TableRow>
         </TableHeader>
         <TableBody>
           {props.list.map((el) => {
