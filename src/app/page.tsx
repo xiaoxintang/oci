@@ -3,6 +3,7 @@ import { ComputeClient, VirtualNetworkClient } from "oci-core";
 
 import { Instance } from "oci-core/lib/model";
 import Oci, { ListItemI } from "./components/oci";
+import Logout from "@/app/components/logout";
 
 export default async function Home() {
   const authenticationDetailsProvider = new SimpleAuthenticationDetailsProvider(
@@ -51,6 +52,9 @@ export default async function Home() {
     <div>
       OCI app
       <div>{authenticationDetailsProvider.getTenantId()}</div>
+      <div>
+        <Logout/>
+      </div>
       <div>
         <Oci list={list} />
       </div>
