@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
-
+import { AntdRegistry } from '@ant-design/nextjs-registry';
 import "./globals.css";
-import { Geist } from "next/font/google";
-import { cn } from "@/lib/utils";
-import {Toaster} from "@/components/ui/sonner";
+import {ConfigProvider} from "antd";
+import zhCN from 'antd/locale/zh_CN';
 
-const geist = Geist({subsets:['latin'],variable:'--font-sans'});
+// for date-picker i18n
+import 'dayjs/locale/zh-cn';
+
 
 export const metadata: Metadata = {
   title: "OCI",
@@ -18,12 +19,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={cn("font-sans", geist.variable)}>
+    <html lang="en" >
       <body>
         <main>
-          {children}
+          <AntdRegistry>
+            <ConfigProvider locale={zhCN}>
+              {children}
+            </ConfigProvider>
+          </AntdRegistry>
         </main>
-        <Toaster />
+        {/*<Toaster />*/}
       </body>
     </html>
   );

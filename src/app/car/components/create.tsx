@@ -14,27 +14,28 @@ import {Button} from "@/components/ui/button";
 import {Database} from "@/types/database.types";
 import {Controller, useForm} from "react-hook-form";
 import {updateCar} from "@/app/car/actions";
-
-export default function CreateCar(props: { defaultValue: Database['public']['Tables']['car']['Insert'] }) {
-
+import {useState} from "react";
+type CarInsert = Database['public']['Tables']['car']['Insert']
+export default function CreateCar(props: { defaultValue:  CarInsert}) {
+    const [open,setOpen] = useState(false)
     const {control, handleSubmit} = useForm({
         defaultValues: props.defaultValue
     })
-    const onSubmit = async (values)=>{
+    const onSubmit = async (values:CarInsert)=>{
         // "use server"
         console.log('values==>',values)
         // const supabase = await createServerSpabase();
         // await supabase.from('car').update({name:values.name}).eq('id',values.id)
         // revalidatePath('/car','page')
         await updateCar(values)
-
+        setOpen(false)
     }
-    return <Dialog>
+    return <Dialog open={open} >
         <form onSubmit={handleSubmit(onSubmit)} id={'car-form'}>
             <DialogTrigger asChild>
-                <Button>编辑</Button>
+                <Button onClick={()=>{setOpen(true)}}>编辑</Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent aria-describedby={undefined}>
                 <DialogTitle>
                 <DialogHeader>车辆编辑</DialogHeader>
                 </DialogTitle>
@@ -43,7 +44,7 @@ export default function CreateCar(props: { defaultValue: Database['public']['Tab
                         control={control} render={({field, fieldState}) => {
                         return <Field data-invalid={fieldState.invalid}>
                             <FieldLabel htmlFor={'name'}>品牌型号</FieldLabel>
-                            <Input id={'name'} aria-invalid={fieldState.invalid} {...field} autoComplete={'off'}/>
+                            <Input id={'name'} aria-invalid={fieldState.invalid} {...field} autoComplete={'off'} value={field.value||''}/>
                         </Field>
                     }}
                         name={'name'}
@@ -53,7 +54,7 @@ export default function CreateCar(props: { defaultValue: Database['public']['Tab
                         render={({field,fieldState})=>{
                             return <Field>
                                 <FieldLabel htmlFor={'buy_at'} data-invalid={fieldState.invalid}>购买时间</FieldLabel>
-                                <Input id={'buy_at'} aria-invalid={fieldState.invalid} {...field}/>
+                                <Input id={'buy_at'} aria-invalid={fieldState.invalid} {...field} value={field.value||''}/>
                             </Field>
                         }}
                         name={'buy_at'}

@@ -1,13 +1,14 @@
 import { createServerClient } from '@supabase/ssr'
+import {createClient} from "@supabase/supabase-js";
 import { cookies } from 'next/headers'
 import {Database} from "@/types/database.types";
 
-export async function createServerSpabase() {
+export async function createServerSupabase() {
     const cookieStore = await cookies()
 
     return createServerClient<Database>(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.SUPABASE_SERVICE_ROLE_KEY!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
         {
             cookies: {
                 getAll() {
@@ -24,5 +25,11 @@ export async function createServerSpabase() {
                 },
             },
         }
+    )
+}
+export async function createAdminSupabase(){
+    return createClient<Database>(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!,
     )
 }
