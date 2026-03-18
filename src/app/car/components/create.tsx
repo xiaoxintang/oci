@@ -1,74 +1,90 @@
-'use client'
-import {Field, FieldGroup, FieldLabel} from "@/components/ui/field";
-import {Input} from "@/components/ui/input";
-import {
-    Dialog,
-    DialogClose,
-    DialogContent,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger
-} from "@/components/ui/dialog";
-import {Button} from "@/components/ui/button";
-import {Database} from "@/types/database.types";
-import {Controller, useForm} from "react-hook-form";
-import {updateCar} from "@/app/car/actions";
-import {useState} from "react";
-type CarInsert = Database['public']['Tables']['car']['Insert']
-export default function CreateCar(props: { defaultValue:  CarInsert}) {
-    const [open,setOpen] = useState(false)
-    const {control, handleSubmit} = useForm({
-        defaultValues: props.defaultValue
-    })
-    const onSubmit = async (values:CarInsert)=>{
-        // "use server"
-        console.log('values==>',values)
-        // const supabase = await createServerSpabase();
-        // await supabase.from('car').update({name:values.name}).eq('id',values.id)
-        // revalidatePath('/car','page')
-        await updateCar(values)
-        setOpen(false)
+'use client';
+import { Button, Form, Input, Modal, DatePicker } from 'antd';
+import { Database } from '@/types/database.types';
+
+import { createCar, updateCar } from '@/app/car/actions';
+import { useEffect, useState } from 'react';
+import dayjs from 'dayjs';
+type CarInsert = Database['public']['Tables']['car']['Insert'];
+import FormItem from 'antd/es/form/FormItem';
+
+export default function CreateCar(props: {
+  defaultValue: CarInsert | undefined;
+  actionText?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [form] = Form.useForm<CarInsert>();
+  const onSubmit = async () => {
+    form.validateFields().then(async (values) => {
+      // "use server"
+      console.log('values==>', values);
+      // const supabase = await createServerSpabase();
+      // await supabase.from('car').update({name:values.name}).eq('id',values.id)
+      // revalidatePath('/car','page')
+      try {
+        if (values.id) {
+          await updateCar(values);
+        } else {
+          await createCar(values);
+        }
+      } catch (error) {
+        console.error('update car error==>', error);
+      }
+      setOpen(false);
+    });
+  };
+  useEffect(() => {
+    if (open) {
+      console.log('dayjs.locale()==>', dayjs.locale());
+      form.resetFields();
     }
-    return <Dialog open={open} >
-        <form onSubmit={handleSubmit(onSubmit)} id={'car-form'}>
-            <DialogTrigger asChild>
-                <Button onClick={()=>{setOpen(true)}}>编辑</Button>
-            </DialogTrigger>
-            <DialogContent aria-describedby={undefined}>
-                <DialogTitle>
-                <DialogHeader>车辆编辑</DialogHeader>
-                </DialogTitle>
-                <FieldGroup>
-                    <Controller
-                        control={control} render={({field, fieldState}) => {
-                        return <Field data-invalid={fieldState.invalid}>
-                            <FieldLabel htmlFor={'name'}>品牌型号</FieldLabel>
-                            <Input id={'name'} aria-invalid={fieldState.invalid} {...field} autoComplete={'off'} value={field.value||''}/>
-                        </Field>
+  }, [open, form]);
+  return (
+    <>
+      <Button
+        type="primary"
+        onClick={() => {
+          setOpen(true);
+        }}
+      >
+        {props.actionText || '编辑'}
+      </Button>
+      <Modal
+        open={open}
+        onCancel={() => setOpen(false)}
+        title="车辆编辑"
+        onOk={() => onSubmit()}
+      >
+        <Form form={form} initialValues={props.defaultValue}>
+          <FormItem name="id" hidden>
+            <Input />
+          </FormItem>
+          <FormItem name="name" label="品牌型号">
+            <Input />
+          </FormItem>
+          <FormItem label="购买时间">
+            <FormItem name="buy_at" hidden>
+              <Input />
+            </FormItem>
+            <FormItem
+              shouldUpdate={(pre, cur) => pre.buy_at !== cur.buy_at}
+              noStyle
+            >
+              {() => {
+                const buyAt = form.getFieldValue('buy_at');
+                return (
+                  <DatePicker
+                    value={buyAt ? dayjs(buyAt) : undefined}
+                    onChange={(date) => {
+                      form.setFieldValue('buy_at', date?.toISOString());
                     }}
-                        name={'name'}
-                    />
-                    <Controller
-                        control={control}
-                        render={({field,fieldState})=>{
-                            return <Field>
-                                <FieldLabel htmlFor={'buy_at'} data-invalid={fieldState.invalid}>购买时间</FieldLabel>
-                                <Input id={'buy_at'} aria-invalid={fieldState.invalid} {...field} value={field.value||''}/>
-                            </Field>
-                        }}
-                        name={'buy_at'}
-                    />
-
-                </FieldGroup>
-                <DialogFooter>
-                    <DialogClose asChild>
-                        <Button variant={'outline'}>取消</Button>
-                    </DialogClose>
-                    <Button type={'submit'} form={'car-form'}>提交</Button>
-                </DialogFooter>
-            </DialogContent>
-        </form>
-    </Dialog>
-
+                  />
+                );
+              }}
+            </FormItem>
+          </FormItem>
+        </Form>
+      </Modal>
+    </>
+  );
 }
