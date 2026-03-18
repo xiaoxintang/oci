@@ -7,20 +7,22 @@ export default function Login(){
     return <div>
         <Button
             onClick={async ()=>{
-                const { data, error } = await supabase.auth.signUp({
-                    email: 'valid.email@supabase.io',
-                    password: 'example-password',
-                    options: {
-                        // emailRedirectTo: 'https://localhost:3000/',
-                    },
-                })
+                // const { data, error } = await supabase.auth.signUp({
+                //     email: 'valid.email@supabase.io',
+                //     password: 'example-password',
+                //     options: {
+                //         // emailRedirectTo: 'https://localhost:3000/',
+                //     },
+                // })
+                console.log('它想注册')
             }}
         >注册</Button>
         <Button onClick={async ()=>{
-            const { data, error } = await supabase.auth.signInWithPassword({
-                email: 'valid.email@supabase.io',
-                password: 'example-password',
-            })
+            // const { data, error } = await supabase.auth.signInWithPassword({
+            //     email: 'valid.email@supabase.io',
+            //     password: 'example-password',
+            // })
+            console.log('它想登录')
         }}>登录</Button>
     </div>
 }

@@ -23,7 +23,7 @@ export default function CarList({ dataSource }: CarListProps) {
           render: (_, record) => (
             <>
               <DeleteCar id={record.id!} />
-              <Divider type="vertical" />
+              <Divider orientation="vertical" />
               <CreateCar defaultValue={record} />
             </>
           ),
