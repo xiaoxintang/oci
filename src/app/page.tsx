@@ -3,7 +3,6 @@ import { ComputeClient, VirtualNetworkClient } from "oci-core";
 
 import { Instance } from "oci-core/lib/model";
 import Oci, { ListItemI } from "./components/oci";
-import Logout from "@/app/components/logout";
 import UploadTest from "@/app/components/UploadTest";
 
 export default async function Home() {
@@ -54,7 +53,6 @@ export default async function Home() {
       OCI app
       <div>{authenticationDetailsProvider.getTenantId()}</div>
       <div>
-        <Logout/>
         <UploadTest />
       </div>
       <div>

@@ -7,13 +7,18 @@ export default async function Car() {
   const cars = await supabase
     .from('car')
     .select('id, name,created_at,updated_at,buy_at');
-  // await supabase.from('car').insert({
-  //     name:'比亚迪驱逐舰05',
-  //     buy_at:dayjs().toISOString(),
-  // })
+
   return (
-    <div>
-      <CreateCar defaultValue={undefined} actionText="创建" />
+    <div className="space-y-4 p-4 sm:p-6">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold text-foreground">车辆管理</h1>
+          <p className="text-sm text-muted-foreground">
+            现在这一页的交互已经全部切换到 shadcn 组件。
+          </p>
+        </div>
+        <CreateCar defaultValue={undefined} actionText="创建" />
+      </div>
       <CarList dataSource={cars.data!} />
     </div>
   );

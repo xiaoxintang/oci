@@ -1,34 +1,69 @@
 'use client';
-import { Divider, Table } from 'antd';
 import { toLocalString } from '@/lib/time';
 import CreateCar from '@/app/car/components/create';
 import { Database } from '@/types/database.types';
 import DeleteCar from './delete';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Card } from '@/components/ui/card';
+
+type CarRow = Pick<
+  Database['public']['Tables']['car']['Row'],
+  'id' | 'name' | 'buy_at' | 'created_at' | 'updated_at'
+>;
+
 interface CarListProps {
-  dataSource: Database['public']['Tables']['car']['Insert'][];
+  dataSource: CarRow[];
 }
 export default function CarList({ dataSource }: CarListProps) {
   return (
-    <Table
-      dataSource={dataSource!}
-      rowKey={(r) => r.id!}
-      columns={[
-        { title: '名字', dataIndex: ['name'] },
-        { title: '购买时间', dataIndex: ['buy_at'], render: toLocalString },
-        { title: '创建时间', dataIndex: ['created_at'], render: toLocalString },
-        { title: '更新时间', dataIndex: ['updated_at'], render: toLocalString },
-        {
-          title: '操作',
-          dataIndex: ['id'],
-          render: (_, record) => (
-            <>
-              <DeleteCar id={record.id!} />
-              <Divider orientation="vertical" />
-              <CreateCar defaultValue={record} />
-            </>
-          ),
-        },
-      ]}
-    />
+    <Card className="overflow-hidden p-0">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>名字</TableHead>
+            <TableHead>购买时间</TableHead>
+            <TableHead>创建时间</TableHead>
+            <TableHead>更新时间</TableHead>
+            <TableHead className="text-right">操作</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {dataSource.length ? (
+            dataSource.map((record) => (
+              <TableRow key={record.id}>
+                <TableCell className="font-medium">
+                  {record.name || '--'}
+                </TableCell>
+                <TableCell>{toLocalString(record.buy_at)}</TableCell>
+                <TableCell>{toLocalString(record.created_at)}</TableCell>
+                <TableCell>{toLocalString(record.updated_at)}</TableCell>
+                <TableCell>
+                  <div className="flex justify-end gap-2">
+                    <CreateCar defaultValue={record} />
+                    <DeleteCar id={record.id} />
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))
+          ) : (
+            <TableRow>
+              <TableCell
+                colSpan={5}
+                className="py-10 text-center text-sm text-muted-foreground"
+              >
+                暂时还没有车辆记录。
+              </TableCell>
+            </TableRow>
+          )}
+        </TableBody>
+      </Table>
+    </Card>
   );
 }
