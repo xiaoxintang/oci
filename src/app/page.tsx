@@ -49,7 +49,7 @@ export default async function Home() {
   // console.log(response);
 
   return (
-    <div>
+    <div className="space-y-6 py-6">
       OCI app
       <div>{authenticationDetailsProvider.getTenantId()}</div>
       <div>

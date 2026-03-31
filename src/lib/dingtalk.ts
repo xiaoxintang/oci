@@ -1,4 +1,3 @@
-import { NextRequest } from "next/server";
 import { createHmac } from "node:crypto";
 function getHookUrl() {
   /**钉钉文档链接

@@ -1,88 +1,105 @@
-"use client"
-import {Input} from "@/components/ui/input";
-import {Button} from "@/components/ui/button";
-import {useRef, useState} from "react";
-import {Spinner} from "@/components/ui/spinner";
-interface UploadProps{
-    onChange?:(url:string)=>void
-}
-export default function Upload(props:UploadProps){
-    const fileRef = useRef<HTMLInputElement>(null);
-    const [loading,setLoading] = useState(false)
-    const [src,setSrc] = useState<string>()
-    const [publicUrl,setPublicUrl] = useState<string>()
-    const onPick = ()=>{
-        if(loading){
-            return
-        }
-        setSrc('')
-        setPublicUrl('')
-        fileRef.current?.click?.()
+'use client';
+
+import Image from 'next/image';
+import { useRef, useState } from 'react';
+
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Spinner } from '@/components/ui/spinner';
+
+export type UploadChangePayload = {
+  key?: string;
+  url: string;
+};
+
+type UploadProps = {
+  onChange?: (payload: UploadChangePayload) => void;
+};
+
+export default function Upload({ onChange }: UploadProps) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [loading, setLoading] = useState(false);
+  const [src, setSrc] = useState<string>();
+  const [publicUrl, setPublicUrl] = useState<string>();
+
+  const onPick = () => {
+    if (loading) {
+      return;
     }
-    return <div className={'w-[80px] h-[80px] relative flex justify-center items-center'}>
-        {
-            !publicUrl && <Button
-            className={'absolute z-10'}
-            onClick={() => {
-                onPick()
-            }}
-        >
-            {loading && <Spinner/>}
-            上传
+
+    setSrc('');
+    setPublicUrl('');
+    fileRef.current?.click?.();
+  };
+
+  return (
+    <div className="relative flex h-20 w-20 items-center justify-center overflow-hidden rounded-xl border bg-muted/20">
+      {!publicUrl ? (
+        <Button className="absolute z-10" type="button" onClick={onPick}>
+          {loading ? <Spinner /> : null}
+          上传
         </Button>
-        }
-        {src && !loading && <img
-            className={'w-full h-full block'}
-            src={src}
-            onClick={()=>{
-                onPick()
-            }}
-            alt={'预览'}
-        />}
-        <Input
-            className={'hidden'}
-            hidden
-            ref={fileRef}
-            type={'file'}
-            onChange={async event => {
-                console.log('event',event)
-                setLoading(true)
-                try {
-                    const reader = new FileReader()
-                    reader.onload = e => {
-                        console.log('on load', e)
-                        console.log('reader result', reader.result)
-                        setSrc(reader.result as string)
-                    }
-                    reader.readAsDataURL(event.target.files?.[0] as File)
-                    if(props.onChange) {
-                        const resp = await fetch('/api/bucket/sign', {
-                            method: "POST",
-                            headers: {
-                                "content-type": "application/json"
-                            },
-                            body: JSON.stringify({
-                                fileName: event.target.files?.[0]?.name,
-                                contentType: event.target.files?.[0]?.type
-                            })
-                        }).then(res => res.json())
-                        const uploadRes = await fetch(resp.signedUrl, {
-                            method: "PUT",
-                            body: event.target.files?.[0],
-                            headers: {
-                                'Content-Type': event.target.files?.[0].type || 'application/octet-stream'
-                                // 如果后端 presign 时指定了其他 header，这里也要匹配
-                            }
-                        })
-                        console.log('uploadRes==>', uploadRes)
-                        console.log('publicUrl==>', resp.publicUrl)
-                        setPublicUrl(resp.publicUrl)
-                        props.onChange(resp.publicUrl)
-                    }
-                } finally {
-                    setLoading(false)
-                }
-            }}
+      ) : null}
+      {src && !loading ? (
+        <Image
+          alt="预览"
+          className="cursor-pointer object-cover"
+          fill
+          src={src}
+          unoptimized
+          onClick={onPick}
         />
+      ) : null}
+      <Input
+        ref={fileRef}
+        hidden
+        className="hidden"
+        type="file"
+        onChange={async (event) => {
+          const file = event.target.files?.[0];
+
+          if (!file) {
+            return;
+          }
+
+          setLoading(true);
+
+          try {
+            const reader = new FileReader();
+            reader.onload = () => {
+              setSrc(reader.result as string);
+            };
+            reader.readAsDataURL(file);
+
+            const response = await fetch('/api/bucket/sign', {
+              method: 'POST',
+              headers: {
+                'content-type': 'application/json',
+              },
+              body: JSON.stringify({
+                fileName: file.name,
+                contentType: file.type,
+              }),
+            }).then((res) => res.json());
+
+            await fetch(response.signedUrl, {
+              method: 'PUT',
+              body: file,
+              headers: {
+                'Content-Type': file.type || 'application/octet-stream',
+              },
+            });
+
+            setPublicUrl(response.publicUrl);
+            onChange?.({
+              key: response.key,
+              url: response.publicUrl,
+            });
+          } finally {
+            setLoading(false);
+          }
+        }}
+      />
     </div>
+  );
 }

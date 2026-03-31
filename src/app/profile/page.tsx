@@ -22,7 +22,7 @@ export default async function ProfilePage() {
   const profile = getUserProfileSnapshot(user);
 
   return (
-    <div className="min-h-screen px-4 py-6 sm:px-6">
+    <div className="min-h-screen py-6">
       <div className="mx-auto max-w-3xl">
         <ProfileForm
           initialValues={{

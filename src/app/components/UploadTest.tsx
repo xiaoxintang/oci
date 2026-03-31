@@ -1,6 +1,7 @@
-"use client"
-import Upload from "@/components/upload";
+'use client';
 
-export default function UploadTest(){
-    return <Upload onChange={url=>console.log('onchange url',url)}/>
+import Upload from '@/components/upload';
+
+export default function UploadTest() {
+  return <Upload onChange={(result) => console.log('upload result', result)} />;
 }

@@ -9,7 +9,7 @@ export default async function Car() {
     .select('id, name,created_at,updated_at,buy_at');
 
   return (
-    <div className="space-y-4 p-4 sm:p-6">
+    <div className="space-y-4 py-6">
       <div className="flex items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold text-foreground">车辆管理</h1>

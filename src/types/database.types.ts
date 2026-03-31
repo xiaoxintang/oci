@@ -41,15 +41,118 @@ export type Database = {
         }
         Relationships: []
       }
+      counterparty: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          note: string | null
+          phone: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          note?: string | null
+          phone?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          note?: string | null
+          phone?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      money_ledger: {
+        Row: {
+          amount: number
+          counterparty_id: string
+          created_at: string
+          entry_type: Database["public"]["Enums"]["ledger_entry_type"]
+          id: string
+          note: string | null
+          occurred_at: string
+          payment_method: Database["public"]["Enums"]["payment_method"]
+          screenshot_key: string | null
+          screenshot_url: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          counterparty_id: string
+          created_at?: string
+          entry_type: Database["public"]["Enums"]["ledger_entry_type"]
+          id?: string
+          note?: string | null
+          occurred_at: string
+          payment_method: Database["public"]["Enums"]["payment_method"]
+          screenshot_key?: string | null
+          screenshot_url?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          counterparty_id?: string
+          created_at?: string
+          entry_type?: Database["public"]["Enums"]["ledger_entry_type"]
+          id?: string
+          note?: string | null
+          occurred_at?: string
+          payment_method?: Database["public"]["Enums"]["payment_method"]
+          screenshot_key?: string | null
+          screenshot_url?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "money_ledger_counterparty_id_fkey"
+            columns: ["counterparty_id"]
+            isOneToOne: false
+            referencedRelation: "counterparty"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
-      [_ in never]: never
+      debt_balance_view: {
+        Row: {
+          counterparty_id: string | null
+          counterparty_name: string | null
+          last_occurred_at: string | null
+          loan_total: number | null
+          outstanding_amount: number | null
+          repaid_total: number | null
+          user_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "money_ledger_counterparty_id_fkey"
+            columns: ["counterparty_id"]
+            isOneToOne: false
+            referencedRelation: "counterparty"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      ledger_entry_type: "loan" | "repayment"
+      payment_method: "wechat" | "alipay" | "bank_transfer" | "cash" | "other"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -176,6 +279,9 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      ledger_entry_type: ["loan", "repayment"],
+      payment_method: ["wechat", "alipay", "bank_transfer", "cash", "other"],
+    },
   },
 } as const
