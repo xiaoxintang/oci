@@ -12,6 +12,7 @@ import RecordEntryDialog from './record-entry-dialog';
 import SummaryTable from './summary-table';
 import {
   type CounterpartyOption,
+  type LedgerDialogMode,
   type DebtSummaryRow,
   type LedgerEntryRow,
   type LedgerEntryType,
@@ -25,6 +26,8 @@ type FundsPageClientProps = {
 };
 
 type DialogState = {
+  entry?: LedgerEntryRow;
+  mode: LedgerDialogMode;
   open: boolean;
   entryType: LedgerEntryType;
   counterpartyId?: string;
@@ -40,10 +43,11 @@ export default function FundsPageClient({
     null,
   );
   const [dialogState, setDialogState] = useState<DialogState>({
+    mode: 'create',
     open: false,
     entryType: 'loan',
   });
-  const dialogKey = `${dialogState.entryType}:${dialogState.counterpartyId ?? 'new'}:${dialogState.open ? 'open' : 'closed'}`;
+  const dialogKey = `${dialogState.mode}:${dialogState.entry?.id ?? 'new'}:${dialogState.entryType}:${dialogState.counterpartyId ?? 'new'}:${dialogState.open ? 'open' : 'closed'}`;
 
   const filteredSummaryRows = summaryRows.filter((row) => {
     const outstandingAmount = toNumberValue(row.outstanding_amount);
@@ -69,16 +73,28 @@ export default function FundsPageClient({
     ? ledgerRows.filter((row) => row.counterparty_id === activeCounterpartyId)
     : ledgerRows;
 
-  const openDialog = (
+  const openCreateDialog = (
     entryType: LedgerEntryType,
     options?: {
       counterpartyId?: string;
     },
   ) => {
     setDialogState({
+      mode: 'create',
       open: true,
+      entry: undefined,
       entryType,
       counterpartyId: options?.counterpartyId,
+    });
+  };
+
+  const openEditDialog = (entry: LedgerEntryRow) => {
+    setDialogState({
+      mode: 'edit',
+      open: true,
+      entry,
+      entryType: entry.entry_type,
+      counterpartyId: entry.counterparty_id,
     });
   };
 
@@ -95,7 +111,7 @@ export default function FundsPageClient({
               </p>
             </div>
           </div>
-          <Button onClick={() => openDialog('loan')}>
+          <Button onClick={() => openCreateDialog('loan')}>
             <HandCoins className="size-4" />
             录入账单
           </Button>
@@ -114,7 +130,7 @@ export default function FundsPageClient({
           )
         }
         onOpenRepayment={(counterpartyId) =>
-          openDialog('repayment', {
+          openCreateDialog('repayment', {
             counterpartyId,
           })
         }
@@ -125,6 +141,7 @@ export default function FundsPageClient({
         activeCounterpartyName={activeCounterpartyName}
         ledgerRows={filteredLedgerRows}
         onClearCounterparty={() => setActiveCounterpartyId(null)}
+        onEditLedgerEntry={openEditDialog}
       />
 
       <RecordEntryDialog
@@ -132,6 +149,8 @@ export default function FundsPageClient({
         counterparties={counterparties}
         defaultCounterpartyId={dialogState.counterpartyId}
         defaultEntryType={dialogState.entryType}
+        initialEntry={dialogState.entry}
+        mode={dialogState.mode}
         open={dialogState.open}
         summaryRows={summaryRows}
         onOpenChange={(open) =>

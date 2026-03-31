@@ -48,6 +48,8 @@ export type LedgerFormValues = {
   note: string;
 };
 
+export type LedgerDialogMode = 'create' | 'edit';
+
 export type SummaryFilter = 'open' | 'settled' | 'all';
 
 export const ENTRY_TYPE_LABELS: Record<LedgerEntryType, string> = {

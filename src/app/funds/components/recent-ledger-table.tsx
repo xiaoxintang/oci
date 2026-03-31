@@ -23,12 +23,14 @@ type RecentLedgerTableProps = {
   activeCounterpartyName: string | null;
   ledgerRows: LedgerEntryRow[];
   onClearCounterparty: () => void;
+  onEditLedgerEntry: (entry: LedgerEntryRow) => void;
 };
 
 export default function RecentLedgerTable({
   activeCounterpartyName,
   ledgerRows,
   onClearCounterparty,
+  onEditLedgerEntry,
 }: RecentLedgerTableProps) {
   return (
     <Card className="overflow-hidden">
@@ -62,6 +64,7 @@ export default function RecentLedgerTable({
               <TableHead>支付方式</TableHead>
               <TableHead>截图</TableHead>
               <TableHead>备注</TableHead>
+              <TableHead className="text-right">操作</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -117,13 +120,24 @@ export default function RecentLedgerTable({
                     <TableCell className="max-w-72 whitespace-normal break-words text-sm text-muted-foreground">
                       {row.note || '--'}
                     </TableCell>
+                    <TableCell>
+                      <div className="flex justify-end">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => onEditLedgerEntry(row)}
+                        >
+                          编辑
+                        </Button>
+                      </div>
+                    </TableCell>
                   </TableRow>
                 );
               })
             ) : (
               <TableRow>
                 <TableCell
-                  colSpan={7}
+                  colSpan={8}
                   className="py-12 text-center text-sm text-muted-foreground"
                 >
                   还没有符合当前筛选条件的流水。

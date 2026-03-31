@@ -13,14 +13,15 @@ export type UploadChangePayload = {
 };
 
 type UploadProps = {
+  initialUrl?: string;
   onChange?: (payload: UploadChangePayload) => void;
 };
 
-export default function Upload({ onChange }: UploadProps) {
+export default function Upload({ initialUrl, onChange }: UploadProps) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(false);
-  const [src, setSrc] = useState<string>();
-  const [publicUrl, setPublicUrl] = useState<string>();
+  const [src, setSrc] = useState<string | undefined>(initialUrl);
+  const [publicUrl, setPublicUrl] = useState<string | undefined>(initialUrl);
 
   const onPick = () => {
     if (loading) {

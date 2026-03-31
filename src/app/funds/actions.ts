@@ -18,6 +18,7 @@ import {
 // 这样数据库字段一变，TypeScript 这里也会同步跟着报错/提示。
 type CounterpartyInsert = Database['public']['Tables']['counterparty']['Insert'];
 type MoneyLedgerInsert = Database['public']['Tables']['money_ledger']['Insert'];
+type MoneyLedgerUpdate = Database['public']['Tables']['money_ledger']['Update'];
 type SupabaseClient = Awaited<ReturnType<typeof createServerSupabase>>;
 
 type UpsertCounterpartyInput = {
@@ -31,6 +32,11 @@ type CounterpartyRecord = {
   id: string;
   name: string;
 };
+
+type ExistingLedgerRecord = Pick<
+  Database['public']['Tables']['money_ledger']['Row'],
+  'id' | 'amount' | 'counterparty_id' | 'entry_type'
+>;
 
 // 账单类型目前只有两种：
 // loan = 我借给别人钱
@@ -47,6 +53,14 @@ const cleanText = (value: string | null | undefined) => {
 // 金额相关校验尽量统一按“分”比较，避免 0.1 + 0.2 这类浮点误差。
 const toAmountInCents = (value: string | number | null | undefined) =>
   Math.round(toNumberValue(value) * 100);
+
+const toOutstandingDeltaInCents = (
+  entryType: LedgerEntryType,
+  amount: string | number | null | undefined,
+) => {
+  const amountInCents = toAmountInCents(amount);
+  return entryType === 'loan' ? amountInCents : -amountInCents;
+};
 
 async function requireAuthenticatedContext() {
   // Server Action 运行在服务端，所以可以直接拿到当前登录用户。
@@ -80,6 +94,106 @@ function assertPaymentMethod(value: string): PaymentMethod {
   }
 
   return value as PaymentMethod;
+}
+
+async function readOutstandingMap(
+  supabase: SupabaseClient,
+  counterpartyIds: string[],
+) {
+  if (!counterpartyIds.length) {
+    return new Map<string, number>();
+  }
+
+  const { data, error } = await supabase
+    .from('debt_balance_view')
+    .select('counterparty_id, outstanding_amount')
+    .in('counterparty_id', counterpartyIds);
+
+  if (error) {
+    throw new Error(formatSupabaseError(error, '读取待还金额失败。'));
+  }
+
+  return new Map(
+    (data ?? []).flatMap((row) => {
+      if (!row.counterparty_id) {
+        return [];
+      }
+
+      return [[row.counterparty_id, toAmountInCents(row.outstanding_amount)]];
+    }),
+  );
+}
+
+async function assertLedgerBalanceChange(
+  supabase: SupabaseClient,
+  nextEntry: {
+    amount: number;
+    counterpartyId: string;
+    entryType: LedgerEntryType;
+  },
+  currentEntry?: ExistingLedgerRecord,
+) {
+  // 这段逻辑是“编辑流水”最关键的地方：
+  // 本质上是在检查这次改动会不会让某个债务人的待还金额变成负数。
+  // 如果会变成负数，说明“已还 > 借出”，业务上不成立。
+  const relatedCounterpartyIds = [
+    ...new Set(
+      [currentEntry?.counterparty_id, nextEntry.counterpartyId].filter(Boolean),
+    ),
+  ];
+  const outstandingMap = await readOutstandingMap(
+    supabase,
+    relatedCounterpartyIds,
+  );
+  const nextDeltaInCents = toOutstandingDeltaInCents(
+    nextEntry.entryType,
+    nextEntry.amount,
+  );
+
+  if (!currentEntry) {
+    const nextOutstandingInCents =
+      (outstandingMap.get(nextEntry.counterpartyId) ?? 0) + nextDeltaInCents;
+
+    if (nextOutstandingInCents < 0) {
+      throw new Error('还款金额不能超过当前待还金额。');
+    }
+
+    return;
+  }
+
+  const currentDeltaInCents = toOutstandingDeltaInCents(
+    currentEntry.entry_type,
+    currentEntry.amount,
+  );
+  const currentCounterpartyOutstandingInCents =
+    outstandingMap.get(currentEntry.counterparty_id) ?? 0;
+
+  if (currentEntry.counterparty_id === nextEntry.counterpartyId) {
+    const nextOutstandingInCents =
+      currentCounterpartyOutstandingInCents -
+      currentDeltaInCents +
+      nextDeltaInCents;
+
+    if (nextOutstandingInCents < 0) {
+      throw new Error('当前修改会导致已还金额大于借出金额，请调整金额。');
+    }
+
+    return;
+  }
+
+  const currentCounterpartyNextOutstandingInCents =
+    currentCounterpartyOutstandingInCents - currentDeltaInCents;
+
+  if (currentCounterpartyNextOutstandingInCents < 0) {
+    throw new Error('当前修改会导致原债务人的已还金额大于借出金额，请调整金额。');
+  }
+
+  const nextCounterpartyOutstandingInCents =
+    (outstandingMap.get(nextEntry.counterpartyId) ?? 0) + nextDeltaInCents;
+
+  if (nextCounterpartyOutstandingInCents < 0) {
+    throw new Error('还款金额不能超过目标债务人的当前待还金额。');
+  }
 }
 
 async function upsertCounterpartyRecord(
@@ -186,31 +300,11 @@ export async function createLedgerEntry(values: LedgerFormValues) {
     name: values.counterpartyName,
   });
 
-  // “还款”比“借出”多一步校验：
-  // 不能还得比当前欠款还多。
-  if (entryType === 'repayment') {
-    const { data: balanceRow, error: balanceError } = await supabase
-      .from('debt_balance_view')
-      .select('outstanding_amount')
-      .eq('counterparty_id', counterparty.id)
-      .maybeSingle();
-
-    if (balanceError) {
-      throw new Error(formatSupabaseError(balanceError, '读取待还金额失败。'));
-    }
-
-    const outstandingAmountInCents = toAmountInCents(
-      balanceRow?.outstanding_amount,
-    );
-
-    if (outstandingAmountInCents <= 0) {
-      throw new Error('该债务人当前没有待还金额，不能登记还款。');
-    }
-
-    if (toAmountInCents(amount) > outstandingAmountInCents) {
-      throw new Error('还款金额不能超过当前待还金额。');
-    }
-  }
+  await assertLedgerBalanceChange(supabase, {
+    amount,
+    counterpartyId: counterparty.id,
+    entryType,
+  });
 
   // 真正写入的是 money_ledger 流水表。
   // dashboard 和汇总表，后面都是从这张流水表聚合出来的。
@@ -218,7 +312,7 @@ export async function createLedgerEntry(values: LedgerFormValues) {
     user_id: user.id,
     counterparty_id: counterparty.id,
     entry_type: entryType,
-    amount: amount.toFixed(2),
+    amount: Number(amount.toFixed(2)),
     occurred_at: occurredAt.toISOString(),
     payment_method: paymentMethod,
     screenshot_url: cleanText(values.screenshotUrl),
@@ -238,6 +332,78 @@ export async function createLedgerEntry(values: LedgerFormValues) {
 
   // 写入成功后让 /funds 重新获取服务端数据，
   // 这样列表和 dashboard 刷新后就是最新状态。
+  revalidatePath('/funds');
+
+  return data;
+}
+
+export async function updateLedgerEntry(id: string, values: LedgerFormValues) {
+  // 编辑和新增共用同一套表单，但服务端会先读取旧流水，
+  // 再判断“这次修改前后”的余额变化是否安全。
+  const { supabase, user } = await requireAuthenticatedContext();
+  const entryType = assertLedgerEntryType(values.entryType);
+  const paymentMethod = assertPaymentMethod(values.paymentMethod);
+  const amount = toNumberValue(values.amount);
+
+  if (amount <= 0) {
+    throw new Error('请输入大于 0 的金额。');
+  }
+
+  const occurredAt = new Date(values.occurredAt);
+
+  if (Number.isNaN(occurredAt.getTime())) {
+    throw new Error('请选择有效的交易时间。');
+  }
+
+  const { data: currentEntry, error: currentEntryError } = await supabase
+    .from('money_ledger')
+    .select('id, counterparty_id, entry_type, amount')
+    .eq('id', id)
+    .eq('user_id', user.id)
+    .single();
+
+  if (currentEntryError || !currentEntry) {
+    throw new Error(formatSupabaseError(currentEntryError, '未找到要编辑的流水。'));
+  }
+
+  const counterparty = await upsertCounterpartyRecord(supabase, user.id, {
+    counterpartyId: values.counterpartyId,
+    name: values.counterpartyName,
+  });
+
+  await assertLedgerBalanceChange(
+    supabase,
+    {
+      amount,
+      counterpartyId: counterparty.id,
+      entryType,
+    },
+    currentEntry,
+  );
+
+  const updateValues: MoneyLedgerUpdate = {
+    counterparty_id: counterparty.id,
+    entry_type: entryType,
+    amount: Number(amount.toFixed(2)),
+    occurred_at: occurredAt.toISOString(),
+    payment_method: paymentMethod,
+    screenshot_url: cleanText(values.screenshotUrl),
+    screenshot_key: cleanText(values.screenshotKey),
+    note: cleanText(values.note),
+  };
+
+  const { data, error } = await supabase
+    .from('money_ledger')
+    .update(updateValues)
+    .eq('id', id)
+    .eq('user_id', user.id)
+    .select('id, counterparty_id')
+    .single();
+
+  if (error || !data) {
+    throw new Error(formatSupabaseError(error, '更新账单失败。'));
+  }
+
   revalidatePath('/funds');
 
   return data;

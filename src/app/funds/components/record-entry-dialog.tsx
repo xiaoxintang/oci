@@ -21,13 +21,15 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { formatCurrency, toDateTimeLocalValue, toNumberValue } from '@/lib/time';
 
-import { createLedgerEntry } from '../actions';
+import { createLedgerEntry, updateLedgerEntry } from '../actions';
 import {
   ENTRY_TYPE_LABELS,
   PAYMENT_METHOD_LABELS,
   PAYMENT_METHOD_OPTIONS,
   type CounterpartyOption,
   type DebtSummaryRow,
+  type LedgerDialogMode,
+  type LedgerEntryRow,
   type LedgerEntryType,
   type LedgerFormValues,
 } from '../types';
@@ -36,6 +38,8 @@ type RecordEntryDialogProps = {
   counterparties: CounterpartyOption[];
   defaultCounterpartyId?: string;
   defaultEntryType: LedgerEntryType;
+  initialEntry?: LedgerEntryRow;
+  mode: LedgerDialogMode;
   onOpenChange: (open: boolean) => void;
   open: boolean;
   summaryRows: DebtSummaryRow[];
@@ -49,22 +53,27 @@ const selectClassName =
 const createInitialFormValues = (
   defaultEntryType: LedgerEntryType,
   defaultCounterpartyId?: string,
+  initialEntry?: LedgerEntryRow,
 ): LedgerFormValues => ({
-  entryType: defaultEntryType,
-  counterpartyId: defaultCounterpartyId ?? '',
+  entryType: initialEntry?.entry_type ?? defaultEntryType,
+  counterpartyId: initialEntry?.counterparty_id ?? defaultCounterpartyId ?? '',
   counterpartyName: '',
-  amount: '',
-  occurredAt: toDateTimeLocalValue(new Date()),
-  paymentMethod: 'wechat',
-  screenshotUrl: '',
-  screenshotKey: '',
-  note: '',
+  amount: initialEntry ? String(initialEntry.amount) : '',
+  occurredAt: initialEntry
+    ? toDateTimeLocalValue(initialEntry.occurred_at)
+    : toDateTimeLocalValue(new Date()),
+  paymentMethod: initialEntry?.payment_method ?? 'wechat',
+  screenshotUrl: initialEntry?.screenshot_url ?? '',
+  screenshotKey: initialEntry?.screenshot_key ?? '',
+  note: initialEntry?.note ?? '',
 });
 
 export default function RecordEntryDialog({
   counterparties,
   defaultCounterpartyId,
   defaultEntryType,
+  initialEntry,
+  mode,
   onOpenChange,
   open,
   summaryRows,
@@ -72,7 +81,7 @@ export default function RecordEntryDialog({
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [form, setForm] = useState<LedgerFormValues>(() =>
-    createInitialFormValues(defaultEntryType, defaultCounterpartyId),
+    createInitialFormValues(defaultEntryType, defaultCounterpartyId, initialEntry),
   );
 
   const resolvedCounterparty = form.counterpartyId
@@ -89,11 +98,24 @@ export default function RecordEntryDialog({
     : null;
 
   const outstandingAmount = toNumberValue(matchedSummary?.outstanding_amount);
+  const initialEntryAmount = toNumberValue(initialEntry?.amount);
+  const previousDeltaForSelectedCounterparty =
+    initialEntry && resolvedCounterparty?.id === initialEntry.counterparty_id
+      ? initialEntry.entry_type === 'loan'
+        ? initialEntryAmount
+        : -initialEntryAmount
+      : 0;
+  const repaymentCapacity =
+    outstandingAmount - previousDeltaForSelectedCounterparty;
 
   const helperText =
     form.entryType === 'repayment'
       ? resolvedCounterparty
-        ? `当前待还：${formatCurrency(outstandingAmount)}`
+        ? mode === 'edit'
+          ? `当前最多可改为：${formatCurrency(
+              Math.max(repaymentCapacity, 0),
+            )}`
+          : `当前待还：${formatCurrency(outstandingAmount)}`
         : '登记还款时，请先选择已有欠款人。'
       : '可以直接选择已有债务人，或输入新名字后自动创建。';
 
@@ -117,11 +139,11 @@ export default function RecordEntryDialog({
         return '登记还款时必须选择已有欠款人。';
       }
 
-      if (outstandingAmount <= 0) {
+      if (repaymentCapacity <= 0) {
         return '该债务人当前没有待还金额。';
       }
 
-      if (Math.round(amount * 100) > Math.round(outstandingAmount * 100)) {
+      if (Math.round(amount * 100) > Math.round(repaymentCapacity * 100)) {
         return '还款金额不能超过当前待还金额。';
       }
     }
@@ -140,17 +162,28 @@ export default function RecordEntryDialog({
     startTransition(() => {
       void (async () => {
         try {
-          await createLedgerEntry({
+          const submitValues = {
             ...form,
             counterpartyId: resolvedCounterparty?.id ?? form.counterpartyId,
-          });
+          };
+
+          if (mode === 'edit' && initialEntry) {
+            await updateLedgerEntry(initialEntry.id, submitValues);
+          } else {
+            await createLedgerEntry(submitValues);
+          }
+
           toast.success(
-            form.entryType === 'loan' ? '借出记录已录入。' : '还款记录已录入。',
+            mode === 'edit'
+              ? '流水已更新。'
+              : form.entryType === 'loan'
+                ? '借出记录已录入。'
+                : '还款记录已录入。',
           );
           onOpenChange(false);
           router.refresh();
         } catch (error) {
-          console.error('create ledger entry error==>', error);
+          console.error('save ledger entry error==>', error);
           toast.error(
             error instanceof Error ? error.message : '保存失败，请稍后再试。',
           );
@@ -163,9 +196,11 @@ export default function RecordEntryDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>录入账单</DialogTitle>
+          <DialogTitle>{mode === 'edit' ? '编辑流水' : '录入账单'}</DialogTitle>
           <DialogDescription>
-            记录借出和回款，系统会自动按债务人汇总待还金额。
+            {mode === 'edit'
+              ? '修改后会重新计算该债务人的待还金额，请留意金额和债务人是否正确。'
+              : '记录借出和回款，系统会自动按债务人汇总待还金额。'}
           </DialogDescription>
         </DialogHeader>
 
@@ -295,6 +330,7 @@ export default function RecordEntryDialog({
             <div className="grid gap-2">
               <Label>交易截图</Label>
               <Upload
+                initialUrl={form.screenshotUrl || undefined}
                 onChange={(uploadResult) =>
                   setForm((current) => ({
                     ...current,
@@ -328,7 +364,7 @@ export default function RecordEntryDialog({
           </DialogClose>
           <Button disabled={isPending} onClick={onSubmit}>
             {isPending ? <Loader2 className="size-4 animate-spin" /> : null}
-            保存账单
+            {mode === 'edit' ? '保存修改' : '保存账单'}
           </Button>
         </DialogFooter>
       </DialogContent>
