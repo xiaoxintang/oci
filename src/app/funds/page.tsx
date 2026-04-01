@@ -98,9 +98,9 @@ export default async function FundsPage() {
           user_id: row.user_id,
           counterparty_id: row.counterparty_id,
           counterparty_name: row.counterparty_name,
-          loan_total: row.loan_total ?? '0',
-          repaid_total: row.repaid_total ?? '0',
-          outstanding_amount: row.outstanding_amount ?? '0',
+          loan_total: String(row.loan_total ?? 0),
+          repaid_total: String(row.repaid_total ?? 0),
+          outstanding_amount: String(row.outstanding_amount ?? 0),
           last_occurred_at: row.last_occurred_at,
         },
       ];

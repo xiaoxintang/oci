@@ -138,7 +138,9 @@ async function assertLedgerBalanceChange(
   // 如果会变成负数，说明“已还 > 借出”，业务上不成立。
   const relatedCounterpartyIds = [
     ...new Set(
-      [currentEntry?.counterparty_id, nextEntry.counterpartyId].filter(Boolean),
+      [currentEntry?.counterparty_id, nextEntry.counterpartyId].filter(
+        (value): value is string => Boolean(value),
+      ),
     ),
   ];
   const outstandingMap = await readOutstandingMap(

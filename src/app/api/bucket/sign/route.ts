@@ -14,13 +14,17 @@ const r2 = new S3Client({
 
 export async function POST(request: NextRequest) {
     try {
-        const { fileName, contentType } = await request.json();
+        const { fileName, contentType, prefix } = await request.json();
 
         if (!fileName || !contentType) {
             return NextResponse.json({ error: 'Missing fileName or contentType' }, { status: 400 });
         }
 
-        const key = `uploads/${crypto.randomUUID()}-${fileName}`; // 自訂路徑，避免碰撞
+        const normalizedPrefix =
+          typeof prefix === 'string' && prefix.trim()
+            ? prefix.trim().replace(/^\/+|\/+$/g, '')
+            : 'uploads';
+        const key = `${normalizedPrefix}/${crypto.randomUUID()}-${fileName}`; // 自訂路徑，避免碰撞
 
         const command = new PutObjectCommand({
             Bucket: process.env.R2_BUCKET_NAME!,

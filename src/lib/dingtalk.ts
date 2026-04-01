@@ -20,7 +20,7 @@ export async function sendDingTalkTextMessage(msg: {
   /**https://open.dingtalk.com/document/dingstart/custom-bot-send-message-type?spm=ding_open_doc.document.0.0.429c3665CjESFK */
   const hookUrl = getHookUrl();
 
-  await fetch(hookUrl, {
+  const response = await fetch(hookUrl, {
     method: "POST",
     body: JSON.stringify({
       msgtype: "text",
@@ -35,4 +35,11 @@ export async function sendDingTalkTextMessage(msg: {
       "Content-Type": "application/json",
     },
   });
+
+  const responseText = await response.text();
+
+  return {
+    ok: response.ok,
+    responseText,
+  };
 }

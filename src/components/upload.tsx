@@ -15,9 +15,10 @@ export type UploadChangePayload = {
 type UploadProps = {
   initialUrl?: string;
   onChange?: (payload: UploadChangePayload) => void;
+  prefix?: string;
 };
 
-export default function Upload({ initialUrl, onChange }: UploadProps) {
+export default function Upload({ initialUrl, onChange, prefix }: UploadProps) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(false);
   const [src, setSrc] = useState<string | undefined>(initialUrl);
@@ -80,6 +81,7 @@ export default function Upload({ initialUrl, onChange }: UploadProps) {
               body: JSON.stringify({
                 fileName: file.name,
                 contentType: file.type,
+                prefix,
               }),
             }).then((res) => res.json());
 

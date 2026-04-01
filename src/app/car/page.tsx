@@ -1,25 +1,47 @@
 import { createServerSupabase } from '@/lib/supabase/server';
-import CarList from '@/app/car/components/list';
-import CreateCar from './components/create';
+import {
+  attachReminderStates,
+  loadCarReminderStates,
+  loadCarReminders,
+} from '@/lib/car/reminders';
 
-export default async function Car() {
+import { formatCarSupabaseError, isCarSchemaMissing } from './errors';
+import SetupNotice from './components/setup-notice';
+import CarPageClient from './components/car-page-client';
+
+export default async function CarPage() {
   const supabase = await createServerSupabase();
-  const cars = await supabase
-    .from('car')
-    .select('id, name,created_at,updated_at,buy_at');
 
-  return (
-    <div className="space-y-4 py-6">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold text-foreground">车辆管理</h1>
-          <p className="text-sm text-muted-foreground">
-            现在这一页的交互已经全部切换到 shadcn 组件。
-          </p>
-        </div>
-        <CreateCar defaultValue={undefined} actionText="创建" />
-      </div>
-      <CarList dataSource={cars.data!} />
-    </div>
-  );
+  const { data: cars, error: carsError } = await supabase
+    .from('car')
+    .select('*')
+    .order('updated_at', { ascending: false });
+
+  if (isCarSchemaMissing(carsError)) {
+    return <SetupNotice />;
+  }
+
+  if (carsError) {
+    throw new Error(formatCarSupabaseError(carsError, '读取车辆列表失败。'));
+  }
+
+  let reminders = [] as Awaited<ReturnType<typeof attachReminderStates>>;
+
+  try {
+    const reminderRows = await loadCarReminders(supabase);
+    const stateMap = await loadCarReminderStates(
+      supabase,
+      reminderRows.map((row) => row.reminder_key),
+    );
+
+    reminders = attachReminderStates(reminderRows, stateMap);
+  } catch (error) {
+    if (isCarSchemaMissing(error)) {
+      return <SetupNotice />;
+    }
+
+    throw new Error(formatCarSupabaseError(error, '读取车辆提醒失败。'));
+  }
+
+  return <CarPageClient cars={cars ?? []} reminders={reminders} />;
 }
